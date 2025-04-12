@@ -174,9 +174,9 @@ def main():
         model2 = Classifier().to(device)
         model2.load_state_dict(torch.load(MODEL_DIR + '/client2/' + args.model2))
 
-        if args.base_model:
-            base_model = Classifier().to(device)
-            base_model.load_state_dict(torch.load(MODEL_DIR + '/' + args.base_model))
+        # if args.base_model:
+        #     base_model = Classifier().to(device)
+        #     base_model.load_state_dict(torch.load(MODEL_DIR + '/' + args.base_model))
         
         global_model0 = Classifier().to(device)
         global_model1 = Classifier().to(device)
@@ -226,7 +226,7 @@ def main():
         acc_global1, loss_global1, per_class_global1 = evaluate(global_model1, test_loader, device, "Global model 1 on test set")
         acc_global2, loss_global2, per_class_global2 = evaluate(global_model2, test_loader, device, "Global model 2 on test set")
         
-        acc_base, _, per_class_base = evaluate(base_model, test_loader, device, "base model on test set")
+        # acc_base, _, per_class_base = evaluate(base_model, test_loader, device, "base model on test set")
 
         print(f"\n📊 Accuracy on own training split:")
         print(f"Client 1 per-class: {', '.join([f'{x:.4f}' for x in per_class1_own])}, Total: {acc1_own:.4f}")
