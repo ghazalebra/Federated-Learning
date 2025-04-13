@@ -4,7 +4,16 @@ This project explores the challenge of **non-IID label distribution** in federat
 
 ---
 
-## Step 1: Download the MNIST Dataset and Generate Non-IID Splits
+## Step 1: Create and Activate the Environment
+
+```bash
+conda env create -f fed_learning.yml
+conda activate fedavg
+```
+
+---
+
+## Step 2: Download the MNIST Dataset and Generate Non-IID Splits
 
 ```bash
 python data_preparation.py
@@ -19,7 +28,7 @@ The generated splits are saved in the `./splits/` directory.
 
 ---
 
-## Step 2: Train the Model for Client 1
+## Step 3: Train the Model for Client 1
 
 ```bash
 python client_training.py --client_id 1 --output_model client1_model.pth
@@ -27,7 +36,7 @@ python client_training.py --client_id 1 --output_model client1_model.pth
 
 ---
 
-## Step 3: Train the Model for Client 2
+## Step 4: Train the Model for Client 2
 
 ```bash
 python client_training.py --client_id 2 --output_model client2_model.pth
@@ -35,7 +44,7 @@ python client_training.py --client_id 2 --output_model client2_model.pth
 
 ---
 
-## Step 4: Aggregate the Models using FedAvg Variants
+## Step 5: Aggregate the Models using FedAvg Variants
 
 ```bash
 python fedavg.py --model1 client1_model.pth --model2 client2_model.pth --output_model fedavg_model.pth
@@ -51,7 +60,7 @@ All aggregated models are saved in the `./models/` directory.
 
 ---
 
-## Step 5: Evaluate the Models
+## Step 6: Evaluate the Models
 
 ```bash
 python fedavg.py --evaluate --model1 client1_model.pth --model2 client2_model.pth --global_model fedavg_model.pth
@@ -66,4 +75,3 @@ Metrics reported:
 
 - Per-class accuracy
 - Overall accuracy
-- Optional confusion matrix (if visualization is added)
