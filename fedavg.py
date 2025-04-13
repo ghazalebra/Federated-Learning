@@ -14,47 +14,7 @@ MODEL_DIR = './models'
 SPLIT_DATA_DIR = './splits'
 DATA_DIR = './data'
 
-# standard fedavg algorithm
-def standard_fedavg(path1, path2, output_path):
-    # load client models paraneters
-    state_dict1 = torch.load(MODEL_DIR + '/client1/' + path1)
-    state_dict2 = torch.load(MODEL_DIR + '/client2/' + path2)
-
-    # check if parameters match
-    assert state_dict1.keys() == state_dict2.keys(), "Model parameters do not match."
-
-    # take average (equal weights since same data size)
-    averaged_state_dict = {}
-    for key in state_dict1:
-        averaged_state_dict[key] = 0.5 * state_dict1[key] + 0.5 * state_dict2[key]
-
-    # save the aggregated model
-    torch.save(averaged_state_dict, MODEL_DIR + '/' + output_path)
-    print(f"FedAvg standard model saved to {output_path}")
-
-# modified fedavg algorithm version 1: Averaging All Layers Except Classifier
-def fedavg_v1(path1, path2, output_path):
-    # load client models paraneters
-    state_dict1 = torch.load(MODEL_DIR + '/client1/' + path1)
-    state_dict2 = torch.load(MODEL_DIR + '/client2/' + path2)
-
-    # check if parameters match
-    assert state_dict1.keys() == state_dict2.keys(), "Model parameters do not match."
-
-    # take average (equal weights since same data size)
-    averaged_state_dict = {}
-    for key in state_dict1:
-        if "fc2" in key:
-            # pick from better client (e.g. client1)
-            averaged_state_dict[key] = state_dict1[key].clone()
-        else:
-            averaged_state_dict[key] = 0.5 * state_dict1[key] + 0.5 * state_dict2[key]
-
-    # save the aggregated model
-    torch.save(averaged_state_dict, MODEL_DIR + '/' + output_path)
-    print(f"FedAvg v1 model saved to {output_path}")
-
-# modified fedavg algorithm version 2: Class-wise Weighted FedAvg
+# used in modified fedavg algorithm version 2: Class-wise Weighted FedAvg
 def classwise_weighted_classifier(fc1, fc2, split_index=5, w_client1=0.8):
     # fc1, fc2 are nn.Linear layers from client1 and client2
     weight = torch.zeros_like(fc1.weight)
@@ -71,37 +31,54 @@ def classwise_weighted_classifier(fc1, fc2, split_index=5, w_client1=0.8):
 
     return weight, bias
 
-def fedavg_v2(path1, path2, output_path):
-
-    client1 = Classifier()
-    client2 = Classifier()
-    
+# standard fedavg algorithm
+def fedavg(path1, path2, output_path, version=0):
     # load client models paraneters
     state_dict1 = torch.load(MODEL_DIR + '/client1/' + path1)
     state_dict2 = torch.load(MODEL_DIR + '/client2/' + path2)
 
-    client1.load_state_dict(state_dict1)
-    client2.load_state_dict(state_dict2)
-
     # check if parameters match
     assert state_dict1.keys() == state_dict2.keys(), "Model parameters do not match."
-
-    # take average (equal weights since same data size)
     averaged_state_dict = {}
-    for key in state_dict1:
-        if "fc2.weight" in key or "fc2.bias" in key:
-            continue 
-        
-        averaged_state_dict[key] = 0.5 * state_dict1[key] + 0.5 * state_dict2[key]
 
-    # apply classwise weighting to classifier
-    w, b = classwise_weighted_classifier(client1.fc2, client2.fc2)
-    averaged_state_dict["fc2.weight"] = w
-    averaged_state_dict["fc2.bias"] = b
+    # standard FedAvg
+    if version == 0:
+        # take average (equal weights since same data size)
+        for key in state_dict1:
+            averaged_state_dict[key] = 0.5 * state_dict1[key] + 0.5 * state_dict2[key]
+    # averaging all layers except classifier
+    elif version == 1:
+        for key in state_dict1:
+            if "fc2" in key:
+                # pick from one client
+                averaged_state_dict[key] = state_dict1[key].clone()
+            else:
+              averaged_state_dict[key] = 0.5 * state_dict1[key] + 0.5 * state_dict2[key]
+    # Class-wise Weighted FedAvg
+    else:
+        client1 = Classifier()
+        client2 = Classifier()
+
+        client1.load_state_dict(state_dict1)
+        client2.load_state_dict(state_dict2)
+
+        averaged_state_dict = {}
+        for key in state_dict1:
+            if "fc2.weight" in key or "fc2.bias" in key:
+                continue 
+            
+            averaged_state_dict[key] = 0.5 * state_dict1[key] + 0.5 * state_dict2[key]
+
+        # apply classwise weighting to classifier
+        w, b = classwise_weighted_classifier(client1.fc2, client2.fc2)
+        averaged_state_dict["fc2.weight"] = w
+        averaged_state_dict["fc2.bias"] = b
 
     # save the aggregated model
-    torch.save(averaged_state_dict, MODEL_DIR + '/' + output_path)
-    print(f"FedAvg v2 model saved to {output_path}")
+    out = output_path.replace(".pth", "")
+    torch.save(averaged_state_dict, MODEL_DIR + '/' + out + f'{version}.pth')
+    print(f"FedAvg version {version} model saved to {output_path}")
+
 
 def evaluate(model, dataloader, device, desc="Evaluating"):
     model.eval()
@@ -159,10 +136,13 @@ def main():
     # FedAvg
     if not args.evaluate:
         assert args.output_model, "Please provide the output path for the global model."
-        out = args.output_model.replace(".pth", "")
-        standard_fedavg(args.model1, args.model2, out + '0.pth')
-        fedavg_v1(args.model1, args.model2, out + '1.pth')
-        fedavg_v2(args.model1, args.model2, out + '2.pth')
+        fedavg(args.model1, args.model2, args.output_model)
+        fedavg(args.model1, args.model2, args.output_model, version=1)
+        fedavg(args.model1, args.model2, args.output_model, version=2)
+        
+        # if len(args.base_model):
+        #     base_model = Classifier().to(device)
+        #     base_model.load_state_dict(torch.load(MODEL_DIR + '/' + args.base_model))
 
     # evaluation
     else:
@@ -174,9 +154,6 @@ def main():
         model2 = Classifier().to(device)
         model2.load_state_dict(torch.load(MODEL_DIR + '/client2/' + args.model2))
 
-        # if args.base_model:
-        #     base_model = Classifier().to(device)
-        #     base_model.load_state_dict(torch.load(MODEL_DIR + '/' + args.base_model))
         
         global_model0 = Classifier().to(device)
         global_model1 = Classifier().to(device)
@@ -189,10 +166,9 @@ def main():
             global_model2.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '2.pth'))
         except:
             print('Global model not found! Running FedAvg function first...')
-            out = args.global_model.replace(".pth", "")
-            standard_fedavg(args.model1, args.model2, out + '0.pth')
-            fedavg_v1(args.model1, args.model2, out + '1.pth')
-            fedavg_v2(args.model1, args.model2, out + '2.pth')
+            fedavg(args.model1, args.model2, args.global_model)
+            fedavg(args.model1, args.model2, args.global_model, version=1)
+            fedavg(args.model1, args.model2, args.global_model, version=2)
             print('Done! Trying to evaluate again...')
             try:
                 global_model0.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '0.pth'))
