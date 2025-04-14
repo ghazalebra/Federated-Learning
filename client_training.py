@@ -11,7 +11,7 @@ import os
 
 from model import Classifier
 
-def train(model, dataloader, device, epochs=15, lr=0.001):
+def train(model, dataloader, device, epochs=5, lr=0.001):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
@@ -77,7 +77,7 @@ def main():
 
     # load data
     if args.client_id:
-        client_data = torch.load(f'./splits/client{args.client_id}.pt')
+        client_data = torch.load(f'./splits/client{args.client_id}.pt', weights_only=False)
     else:
         transform = transforms.ToTensor()
         client_data = datasets.MNIST(root='./data', train=True, download=True, transform=transform)

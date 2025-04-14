@@ -34,8 +34,8 @@ def classwise_weighted_classifier(fc1, fc2, split_index=5, w_client1=0.8):
 # standard fedavg algorithm
 def fedavg(path1, path2, output_path, version=0):
     # load client models paraneters
-    state_dict1 = torch.load(MODEL_DIR + '/client1/' + path1)
-    state_dict2 = torch.load(MODEL_DIR + '/client2/' + path2)
+    state_dict1 = torch.load(MODEL_DIR + '/client1/' + path1, weights_only=False)
+    state_dict2 = torch.load(MODEL_DIR + '/client2/' + path2, weights_only=False)
 
     # check if parameters match
     assert state_dict1.keys() == state_dict2.keys(), "Model parameters do not match."
@@ -149,10 +149,10 @@ def main():
         
         # load models
         model1 = Classifier().to(device)
-        model1.load_state_dict(torch.load(MODEL_DIR + '/client1/' + args.model1))
+        model1.load_state_dict(torch.load(MODEL_DIR + '/client1/' + args.model1, weights_only=False))
 
         model2 = Classifier().to(device)
-        model2.load_state_dict(torch.load(MODEL_DIR + '/client2/' + args.model2))
+        model2.load_state_dict(torch.load(MODEL_DIR + '/client2/' + args.model2, weights_only=False))
 
         
         global_model0 = Classifier().to(device)
@@ -161,9 +161,9 @@ def main():
         assert args.global_model, "Please provide the path to the global model."
         global_path = args.global_model.replace(".pth", "")
         try:
-            global_model0.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '0.pth'))
-            global_model1.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '1.pth'))
-            global_model2.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '2.pth'))
+            global_model0.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '0.pth', weights_only=False))
+            global_model1.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '1.pth', weights_only=False))
+            global_model2.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '2.pth', weights_only=False))
         except:
             print('Global model not found! Running FedAvg function first...')
             fedavg(args.model1, args.model2, args.global_model)
@@ -171,15 +171,15 @@ def main():
             fedavg(args.model1, args.model2, args.global_model, version=2)
             print('Done! Trying to evaluate again...')
             try:
-                global_model0.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '0.pth'))
-                global_model1.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '1.pth'))
-                global_model2.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '2.pth'))
+                global_model0.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '0.pth', weights_only=False))
+                global_model1.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '1.pth', weights_only=False))
+                global_model2.load_state_dict(torch.load(MODEL_DIR + '/' + global_path + '2.pth', weights_only=False))
             except:
                 print('Something went wrong!')
                 return
         # load datasets
-        client1_data = torch.load(SPLIT_DATA_DIR + '/' + 'client1.pt')
-        client2_data = torch.load(SPLIT_DATA_DIR + '/' + 'client2.pt')
+        client1_data = torch.load(SPLIT_DATA_DIR + '/' + 'client1.pt', weights_only=False)
+        client2_data = torch.load(SPLIT_DATA_DIR + '/' + 'client2.pt', weights_only=False)
         transform = transforms.ToTensor()
         test_dataset = datasets.MNIST(root=DATA_DIR, train=False, download=True, transform=transform)
         
